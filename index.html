@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OceanTrade — Futures Journal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  /* Light Ocean Palette — white & light blue dominant */
+  --bg:        #f0f8ff;
+  --bg2:       #e4f3fc;
+  --surface:   #ffffff;
+  --surface2:  #f7fbff;
+  --surface3:  #eaf5fd;
+  --ocean1:    #0ea5e9;
+  --ocean2:    #0284c7;
+  --ocean3:    #0369a1;
+  --deep:      #075985;
+  --deepest:   #0c4a6e;
+  --wave:      #38bdf8;
+  --foam:      #7dd3fc;
+  --mist:      #bae6fd;
+  --sky:       #e0f2fe;
+  --text:      #0c4a6e;
+  --text2:     #0369a1;
+  --text3:     #64748b;
+  --text4:     #94a3b8;
+  --border:    rgba(14,165,233,0.15);
+  --border2:   rgba(14,165,233,0.3);
+  --border3:   rgba(14,165,233,0.5);
+  --shadow:    0 2px 20px rgba(7,89,133,0.1);
+  --shadow2:   0 8px 40px rgba(7,89,133,0.14);
+  --glow:      0 0 0 3px rgba(14,165,233,0.15);
+  --green:     #059669;
+  --green-bg:  #ecfdf5;
+  --green-bd:  rgba(5,150,105,0.25);
+  --red:       #dc2626;
+  --red-bg:    #fef2f2;
+  --red-bd:    rgba(220,38,38,0.2);
+  --gold:      #d97706;
+  --gold-bg:   #fffbeb;
+  --warn:      #f59e0b;
+  --radius:    14px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── BACKGROUND ─── */
+.ocean-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  background: linear-gradient(160deg, #f0f8ff 0%, #e0f2fe 40%, #f0f8ff 100%);
+}
+.ocean-bg::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 20%, rgba(125,211,252,0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 90% 80%, rgba(56,189,248,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.1) 0%, transparent 50%);
+}
+.wave-svg {
+  position: absolute; bottom: 0; left: 0; width: 200%; opacity: 0.07;
+  animation: waveDrift 20s linear infinite;
+}
+.wave-svg:nth-child(3) { opacity: 0.05; animation-duration: 14s; animation-direction: reverse; bottom: -12px; }
+@keyframes waveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* subtle grid */
+.ocean-bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ─── LAYOUT ─── */
+.app { position: relative; z-index: 1; min-height: 100vh; }
+
+/* ─── HEADER ─── */
+header {
+  position: sticky; top: 0; z-index: 200;
+  min-height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border2);
+  box-shadow: 0 1px 0 rgba(14,165,233,0.08), var(--shadow);
+  gap: 10px;
+  overflow: visible;
+  flex-wrap: nowrap;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0; }
+.logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--ocean1), var(--ocean3));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.35);
+}
+.logo-mark svg { width: 22px; height: 22px; }
+.logo-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.25rem; font-weight: 800;
+  color: var(--deepest);
+  letter-spacing: -0.02em;
+}
+.logo-tag {
+  font-size: 0.65rem; font-weight: 500;
+  color: var(--ocean1);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-top: 1px;
+}
+.nav {
+  display: flex; gap: 2px;
+  background: var(--sky);
+  border: 1px solid var(--border2);
+  border-radius: 12px; padding: 4px;
+  flex-shrink: 1;
+}
+.nav-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 7px 13px; border-radius: 8px;
+  border: none; background: transparent;
+  color: var(--text3); cursor: pointer;
+  transition: all 0.2s; white-space: nowrap;
+}
+.nav-btn:hover { color: var(--ocean2); }
+.nav-btn.active {
+  background: var(--surface);
+  color: var(--ocean2);
+  box-shadow: 0 2px 8px rgba(14,165,233,0.15);
+}
+.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.balance-pill {
+  display: flex; flex-direction: column; align-items: flex-end;
+  background: linear-gradient(135deg, var(--ocean1), var(--ocean2));
+  border-radius: 10px; padding: 5px 14px;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.3);
+  flex-shrink: 0; white-space: nowrap; min-width: 100px;
+}
+.balance-pill .lbl { font-size: 0.55rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.8); }
+.balance-pill .val { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; color: #fff; letter-spacing: -0.01em; white-space: nowrap; }
+.btn-export {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 8px 16px; border-radius: 9px;
+  border: 1.5px solid var(--green-bd);
+  background: var(--green-bg);
+  color: var(--green); cursor: pointer; transition: all 0.2s;
+}
+.btn-export:hover { background: #d1fae5; border-color: var(--green); box-shadow: 0 4px 12px rgba(5,150,105,0.15); }
+
+/* ─── MAIN ─── */
+main { max-width: 1360px; margin: 0 auto; padding: 28px 28px 80px; }
+.page { display: none; }
+.page.active { display: block; animation: pageIn 0.3s ease; }
+@keyframes pageIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+
+/* ─── PAGE HEADER ─── */
+.page-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+.page-hdr::after { display: none; }
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em;
+  color: var(--deepest);
+  display: flex; align-items: center; gap: 10px;
+}
+.page-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--ocean1), var(--ocean2));
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+  box-shadow: 0 3px 8px rgba(14,165,233,0.3);
+}
+
+/* ─── CARD ─── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.card:hover { box-shadow: var(--shadow2); border-color: var(--border2); }
+.card-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ocean2); display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 20px; }
+
+/* ─── GRID ─── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.g-gap { display: grid; gap: 14px; }
+
+/* ─── FORM ─── */
+.fgroup { display: flex; flex-direction: column; gap: 6px; }
+.flabel {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text2);
+}
+.flabel.req::after { content: ' *'; color: var(--ocean1); }
+.finput, select, textarea {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem; font-weight: 400;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  outline: none; width: 100%;
+  transition: all 0.2s;
+  appearance: none;
+}
+.finput:focus, select:focus, textarea:focus {
+  border-color: var(--ocean1);
+  background: var(--surface);
+  box-shadow: var(--glow);
+}
+.finput::placeholder, textarea::placeholder { color: var(--text4); }
+select option { background: #fff; color: var(--text); }
+textarea { resize: vertical; min-height: 72px; line-height: 1.55; }
+.finput[readonly] { background: var(--sky); color: var(--ocean2); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 700; cursor: default; }
+
+/* ─── BUTTONS ─── */
+.btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--ocean1), var(--ocean2));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(14,165,233,0.35);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(14,165,233,0.45); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+  background: var(--surface);
+  color: var(--ocean2);
+  border: 1.5px solid var(--border2);
+}
+.btn-ghost:hover { background: var(--sky); border-color: var(--ocean1); }
+.btn-danger {
+  background: var(--red-bg); color: var(--red);
+  border: 1.5px solid var(--red-bd); padding: 6px 12px; font-size: 0.65rem;
+}
+.btn-danger:hover { background: #fee2e2; border-color: var(--red); }
+
+/* ─── CHECKLIST ─── */
+.chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.chk-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 10px; cursor: pointer; user-select: none; transition: all 0.2s;
+}
+.chk-item:hover { border-color: var(--border3); background: var(--sky); }
+.chk-item.ok { border-color: var(--green-bd); background: var(--green-bg); }
+.chk-item.no { border-color: var(--red-bd); background: var(--red-bg); }
+.chk-box {
+  width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700;
+  background: var(--surface); border: 1.5px solid var(--border3);
+  transition: all 0.2s;
+}
+.chk-item.ok .chk-box { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.chk-item.no .chk-box { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.chk-label { font-size: 0.82rem; font-weight: 500; color: var(--text); line-height: 1.3; }
+.chk-item.ok .chk-label { color: var(--green); }
+.chk-item.no .chk-label { color: var(--red); }
+
+/* ─── IMAGE UPLOAD ─── */
+.upload-zone {
+  border: 2px dashed var(--border3);
+  border-radius: var(--radius);
+  padding: 28px 20px; text-align: center;
+  cursor: pointer; position: relative; overflow: hidden;
+  background: var(--sky); transition: all 0.2s;
+}
+.upload-zone:hover, .upload-zone.over { border-color: var(--ocean1); background: rgba(14,165,233,0.06); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.45; }
+.upload-txt { font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700; color: var(--ocean2); letter-spacing: 0.06em; text-transform: uppercase; }
+.upload-sub { font-size: 0.72rem; color: var(--text4); margin-top: 4px; }
+.img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 10px; margin-top: 12px; }
+.img-thumb {
+  position: relative; aspect-ratio: 16/9;
+  border-radius: 9px; overflow: hidden; border: 1.5px solid var(--border2);
+  background: var(--sky);
+}
+.img-thumb img { width:100%; height:100%; object-fit:cover; transition: transform 0.25s; }
+.img-thumb:hover img { transform: scale(1.05); }
+.img-thumb .del {
+  position: absolute; top:5px; right:5px;
+  width:20px; height:20px; border-radius:50%;
+  background: rgba(220,38,38,0.85); border:none;
+  color:#fff; font-size:0.65rem; cursor:pointer;
+  display:none; align-items:center; justify-content:center;
+}
+.img-thumb:hover .del { display:flex; }
+
+/* ─── CALC BOX ─── */
+.calc-box {
+  background: linear-gradient(135deg, var(--sky), var(--mist));
+  border: 1.5px solid var(--border3);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.calc-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(14,165,233,0.1); }
+.calc-row:last-child { border-bottom: none; }
+.calc-lbl { font-size: 0.76rem; font-weight: 500; color: var(--text3); }
+.calc-val { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700; color: var(--deepest); }
+.calc-val.pos { color: var(--green); }
+.calc-val.neg { color: var(--red); }
+.calc-val.warn { color: var(--gold); }
+.calc-val.big { font-size: 1.2rem; color: var(--ocean2); }
+
+/* ─── RR BADGE ─── */
+.rr-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 50px;
+  font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700;
+  border: 2px solid;
+}
+.rr-good { background: var(--green-bg); border-color: var(--green-bd); color: var(--green); }
+.rr-ok   { background: var(--gold-bg);  border-color: rgba(217,119,6,0.25); color: var(--gold); }
+.rr-bad  { background: var(--red-bg);   border-color: var(--red-bd); color: var(--red); }
+
+/* ─── CONFIDENCE SLIDER ─── */
+.conf-wrap { display: flex; align-items: center; gap: 12px; }
+input[type=range] {
+  -webkit-appearance: none; width: 100%; height: 5px;
+  background: var(--mist); border-radius: 3px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--ocean1);
+  border: 3px solid #fff; box-shadow: 0 2px 8px rgba(14,165,233,0.4);
+  cursor: pointer; transition: transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.conf-val { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; color: var(--ocean2); min-width: 42px; text-align: right; }
+
+/* ─── EMOTION ─── */
+.emo-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.emo-btn {
+  padding: 6px 12px; border-radius: 20px;
+  border: 1.5px solid var(--border2); background: var(--surface2);
+  color: var(--text2); font-size: 0.78rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 5px;
+}
+.emo-btn:hover { border-color: var(--ocean1); background: var(--sky); }
+.emo-btn.on { border-color: var(--ocean1); background: rgba(14,165,233,0.1); color: var(--ocean2); font-weight: 700; }
+
+/* ─── BADGE ─── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.badge-long  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+.badge-short { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-bd); }
+.badge-win   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+.badge-loss  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-bd); }
+.badge-be    { background: var(--gold-bg);  color: var(--gold);  border: 1px solid rgba(217,119,6,0.2); }
+.badge-partial { background: rgba(14,165,233,0.1); color: var(--ocean2); border: 1px solid var(--border2); }
+
+/* ─── TABLE ─── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border2); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead { background: var(--sky); border-bottom: 1.5px solid var(--border2); }
+th { font-family: 'Syne', sans-serif; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ocean2); padding: 12px 14px; text-align: left; white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tbody tr { cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background: var(--sky); }
+.td-mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+.td-pos { color: var(--green); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.td-neg { color: var(--red);   font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+/* ─── STAT CARD ─── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px,1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px;
+  box-shadow: var(--shadow); transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--bar-color, linear-gradient(90deg, var(--ocean1), var(--wave))); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow2); border-color: var(--border2); }
+.stat-lbl { font-family: 'Syne', sans-serif; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 7px; }
+.stat-val { font-family: 'Syne', sans-serif; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+.stat-sub { font-size: 0.72rem; color: var(--text4); margin-top: 5px; }
+
+/* ─── DIVIDER ─── */
+.divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+/* ─── MODAL ─── */
+.overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(7,89,133,0.25);
+  backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1.5px solid var(--border2);
+  border-radius: 24px; width: 100%; max-width: 680px;
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(7,89,133,0.25);
+  animation: modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalPop { from { transform: scale(0.92) translateY(16px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
+.modal-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.modal-title { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 800; color: var(--deepest); }
+.modal-close { width:30px; height:30px; border-radius:8px; background:var(--red-bg); border:1.5px solid var(--red-bd); color:var(--red); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.2s; }
+.modal-close:hover { background:#fee2e2; }
+.modal-body { padding: 24px; }
+.modal-foot { padding: 18px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ─── SETUP MODAL — first run ─── */
+.setup-modal { max-width: 460px; }
+.setup-hero {
+  background: linear-gradient(135deg, var(--ocean1), var(--ocean3));
+  padding: 32px 24px; text-align: center; border-radius: 22px 22px 0 0;
+}
+.setup-hero-icon { font-size: 3rem; margin-bottom: 12px; }
+.setup-hero-title { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; color: #fff; }
+.setup-hero-sub { font-size: 0.85rem; color: rgba(255,255,255,0.8); margin-top: 6px; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+  background: var(--surface); border: 1.5px solid var(--border2);
+  border-radius: 14px; padding: 13px 18px;
+  display: flex; align-items: center; gap: 11px;
+  box-shadow: var(--shadow2);
+  transform: translateY(60px); opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none; max-width: 340px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-msg { font-size: 0.85rem; font-weight: 500; color: var(--text); }
+
+/* ─── PROGRESS ─── */
+.prog { height: 6px; background: var(--mist); border-radius: 3px; overflow: hidden; }
+.prog-fill { height:100%; border-radius:3px; background: linear-gradient(90deg, var(--ocean1), var(--wave)); transition: width 0.4s ease; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(14,165,233,0.25); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(14,165,233,0.45); }
+
+/* ─── CHART ─── */
+.chart-box { position: relative; height: 260px; padding: 8px; }
+
+/* ─── EMPTY ─── */
+.empty { text-align:center; padding:50px 20px; }
+.empty-icon { font-size:2.5rem; opacity:0.2; margin-bottom:12px; }
+.empty-txt { font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text4); }
+.empty-sub { font-size:0.8rem; color:var(--text4); margin-top:6px; }
+
+/* ─── SECTION LABEL ─── */
+.section-lbl {
+  font-family: 'Syne', sans-serif; font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ocean2); margin-bottom: 9px;
+  padding-left: 8px; border-left: 3px solid var(--ocean1);
+}
+
+/* ─── INDICATOR BADGES ─── */
+.ind-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ind-badge {
+  padding: 5px 12px; border-radius: 20px;
+  background: rgba(14,165,233,0.08); border: 1.5px solid var(--border2);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+  color: var(--ocean2); display: flex; align-items: center; gap: 5px;
+}
+.ind-dot { width:7px; height:7px; border-radius:50%; background:var(--ocean1); }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+  header { padding: 0 16px; }
+  main { padding: 16px 14px 60px; }
+  .g2,.g3,.g4 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 580px) {
+  .nav-btn { padding: 6px 10px; font-size: 0.65rem; }
+  .balance-pill .val { font-size: 0.85rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND -->
+<div class="ocean-bg">
+  <svg class="wave-svg" viewBox="0 0 1200 120" preserveAspectRatio="none" fill="rgba(14,165,233,0.6)">
+    <path d="M0,60 C150,110 350,10 600,60 C850,110 1050,10 1200,60 L1200,120 L0,120Z"/>
+  </svg>
+  <svg class="wave-svg" viewBox="0 0 1200 120" preserveAspectRatio="none" fill="rgba(56,189,248,0.5)">
+    <path d="M0,40 C200,90 400,0 600,50 C800,100 1000,10 1200,50 L1200,120 L0,120Z"/>
+  </svg>
+</div>
+
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 22 22" fill="none">
+        <path d="M3 14 C6 9 8 16 11 11 C14 6 16 13 19 8" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        <circle cx="11" cy="11" r="2" fill="white" opacity="0.7"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">OceanTrade</div>
+      <div class="logo-tag">Futures Journal</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="nav('pre')">⚓ Pre-Trade</button>
+    <button class="nav-btn" onclick="nav('post')">🎯 Post-Trade</button>
+    <button class="nav-btn" onclick="nav('port')">📊 Portofolio</button>
+    <button class="nav-btn" onclick="nav('hist')">📋 Riwayat</button>
+  </nav>
+
+  <div class="header-right">
+    <button class="btn-export" onclick="exportXLSX()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Ekspor Excel
+    </button>
+    <!-- Auth -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="auth-lbl" style="font-size:0.75rem;font-weight:600;color:var(--text3);display:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <button id="auth-btn" onclick="loginGoogle()" title="Login with Google"
+        style="display:flex;align-items:center;gap:7px;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:8px 14px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--ocean2);cursor:pointer;transition:all 0.2s;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/></svg>
+        <span id="auth-btn-txt">Login</span>
+      </button>
+    </div>
+    <div class="balance-pill">
+      <span class="lbl">Saldo</span>
+      <span class="val" id="hdr-bal">$0.00</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ════════════════════════════════════════
+     PRE-TRADE
+     ════════════════════════════════════════ -->
+<div class="page active" id="pg-pre">
+  <div class="page-hdr">
+    <h2 class="page-title"><span class="page-icon">⚓</span> Analisis Pre-Trade</h2>
+    <div style="display:flex;gap:9px;align-items:center;">
+      <span id="today-lbl" style="font-size:0.78rem;color:var(--text3);"></span>
+      <button class="btn btn-ghost" onclick="clearPre()">Bersihkan</button>
+      <button class="btn btn-primary" onclick="savePre()">💾 Simpan Rencana</button>
+    </div>
+  </div>
+
+  <!-- ROW 1: Screenshots + Parameters -->
+  <div class="g2" style="margin-bottom:18px;">
+
+    <!-- Screenshots -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">📸 Screenshot Setup</span>
+        <span style="font-size:0.7rem;color:var(--text4);">Multi-timeframe</span>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="pre-zone">
+          <input type="file" id="pre-files" multiple accept="image/*" onchange="addPreImgs(event)">
+          <div class="upload-icon">🌊</div>
+          <div class="upload-txt">Klik atau Drop Chart di Sini</div>
+          <div class="upload-sub">PNG · JPG · Bisa beberapa file sekaligus</div>
+        </div>
+        <div class="img-grid" id="pre-thumbs"></div>
+      </div>
+    </div>
+
+    <!-- Trade Parameters -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">🎯 Parameter Trade</span></div>
+      <div class="card-body">
+        <div class="g2" style="gap:12px;">
+          <div class="fgroup">
+            <label class="flabel req">Pair</label>
+            <input class="finput" id="p-pair" placeholder="BTCUSDT" oninput="this.value=this.value.toUpperCase();calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Arah</label>
+            <select id="p-dir" onchange="calcPos()">
+              <option value="">— Pilih —</option>
+              <option value="LONG">🟢 LONG</option>
+              <option value="SHORT">🔴 SHORT</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Tanggal</label>
+            <input class="finput" type="date" id="p-date">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Waktu</label>
+            <input class="finput" type="time" id="p-time">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Timeframe</label>
+            <select id="p-tf">
+              <option value="">— TF —</option>
+              <option>1m</option><option>3m</option><option>5m</option>
+              <option>15m</option><option>30m</option><option>1H</option>
+              <option>2H</option><option>4H</option><option>1D</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Sesi</label>
+            <select id="p-sess">
+              <option value="">— Sesi —</option>
+              <option>🌏 Asia</option><option>🇬🇧 London</option>
+              <option>🗽 New York</option><option>🔀 London/NY</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Harga Entry</label>
+            <input class="finput" type="number" id="p-entry" placeholder="cth. 50000" step="any" oninput="calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Stop Loss</label>
+            <input class="finput" type="number" id="p-sl" placeholder="cth. 49000" step="any" oninput="calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Take Profit</label>
+            <input class="finput" type="number" id="p-tp" placeholder="cth. 52000" step="any" oninput="calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Leverage</label>
+            <input class="finput" type="number" id="p-lev" placeholder="cth. 100" min="1" max="125" oninput="calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Margin (USDT)</label>
+            <input class="finput" type="number" id="p-margin" placeholder="cth. 2" step="0.01" oninput="calcPos()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Exchange</label>
+            <select id="p-exch">
+              <option value="">— Exchange —</option>
+              <option>Binance</option><option>Bybit</option><option>OKX</option>
+              <option>Bitget</option><option>MEXC</option><option>Hyperliquid</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: Calc + Strategy + Checklist -->
+  <div class="g2" style="margin-bottom:18px;">
+
+    <!-- Auto Calculator -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">🧮 Kalkulator Otomatis</span>
+        <div id="rr-badge-wrap"></div>
+      </div>
+      <div class="card-body">
+        <div class="calc-box">
+          <div class="calc-row">
+            <span class="calc-lbl">Position Size (Kontrak)</span>
+            <span class="calc-val big" id="c-possize">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Nilai Notional</span>
+            <span class="calc-val" id="c-notional">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Risk/Reward Ratio</span>
+            <span class="calc-val" id="c-rr">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Maks. Rugi (jika SL kena)</span>
+            <span class="calc-val neg" id="c-loss">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Maks. Profit (jika TP kena)</span>
+            <span class="calc-val pos" id="c-profit">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Risiko % dari Saldo</span>
+            <span class="calc-val warn" id="c-riskpct">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">Liquidation Price (est.)</span>
+            <span class="calc-val warn" id="c-liq">—</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-lbl">SL Distance %</span>
+            <span class="calc-val" id="c-sldist">—</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Indicators used -->
+        <div class="section-lbl">Indikator Aktif</div>
+        <div class="ind-row">
+          <div class="ind-badge"><div class="ind-dot" style="background:#f59e0b"></div>Stoch 5,3,3</div>
+          <div class="ind-badge"><div class="ind-dot" style="background:#0ea5e9"></div>Volume</div>
+          <div class="ind-badge"><div class="ind-dot" style="background:#059669"></div>EMA 13</div>
+          <div class="ind-badge"><div class="ind-dot" style="background:#dc2626"></div>EMA 21</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📐 Strategi & Pattern</span></div>
+      <div class="card-body">
+        <div class="g-gap">
+          <!-- Pattern -->
+          <div class="fgroup">
+            <label class="flabel req">Chart Pattern</label>
+            <select id="p-pattern">
+              <option value="">— Pilih Pattern —</option>
+              <optgroup label="Continuation Patterns">
+                <option>Ascending Triangle</option>
+                <option>Descending Triangle</option>
+                <option>Symmetrical Triangle</option>
+                <option>Bull Flag</option>
+                <option>Bear Flag</option>
+                <option>Bull Pennant</option>
+                <option>Bear Pennant</option>
+                <option>Rising Channel</option>
+                <option>Falling Channel</option>
+              </optgroup>
+              <optgroup label="Reversal Patterns">
+                <option>Rising Wedge</option>
+                <option>Falling Wedge</option>
+                <option>Double Top</option>
+                <option>Double Bottom</option>
+                <option>Head & Shoulders</option>
+                <option>Inv. Head & Shoulders</option>
+                <option>Cup & Handle</option>
+              </optgroup>
+              <optgroup label="Breakout Zones">
+                <option>Horizontal Support Break</option>
+                <option>Horizontal Resistance Break</option>
+                <option>Trendline Break (Up)</option>
+                <option>Trendline Break (Down)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Entry Type -->
+          <div class="fgroup">
+            <label class="flabel req">Tipe Entry</label>
+            <select id="p-entrytype">
+              <option value="">— Pilih Tipe Entry —</option>
+              <option value="breakout-direct">⚡ Breakout — Entry langsung (candle close di luar)</option>
+              <option value="breakout-anticipate">🎯 Antisipasi — Entry sebelum breakout terjadi</option>
+              <option value="retest">🔄 Retest — Entry saat harga pullback ke trendline</option>
+            </select>
+          </div>
+
+          <!-- Trendline break confirmation -->
+          <div class="fgroup">
+            <label class="flabel">Kondisi Trendline</label>
+            <select id="p-tl">
+              <option value="">— Pilih —</option>
+              <option>Harga menyentuh trendline (antisipasi)</option>
+              <option>Candle close di atas/bawah trendline</option>
+              <option>Close kuat + konfirmasi volume</option>
+              <option>Retest pertama setelah breakout</option>
+              <option>Retest kedua (konfirmasi lebih kuat)</option>
+            </select>
+          </div>
+
+          <!-- Indicator confirmations -->
+          <div>
+            <div class="section-lbl">Konfirmasi Indikator</div>
+            <div class="chk-grid" style="grid-template-columns:1fr;">
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📊 Stoch (5,3,3) — oversold untuk LONG / overbought untuk SHORT</span></div>
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📊 Stoch K memotong D ke arah yang benar</span></div>
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📊 Volume spike pada candle breakout</span></div>
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📈 Harga di atas EMA 13 & 21 (LONG)</span></div>
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📈 EMA 13 di atas EMA 21 (bias LONG)</span></div>
+              <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">📐 Trendline pattern sudah tergambar jelas</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: Additional Checklist + Mindset -->
+  <div class="g2" style="margin-bottom:18px;">
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">✅ Konfirmasi Setup</span>
+        <span id="chk-score" style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text3);">0/0</span>
+      </div>
+      <div class="card-body">
+        <div class="section-lbl" style="margin-bottom:8px;">Risiko & Konteks</div>
+        <div class="chk-grid">
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">RR Ratio ≥ 2:1</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Tidak ada berita besar dalam 1 jam ke depan</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Pattern sudah terbentuk sempurna (tidak dipaksakan)</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">SL ditempatkan di luar struktur pattern</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">TP punya ruang gerak — tidak ada resistance kuat di depan (LONG)</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Jumlah margin wajar (≤2-5% saldo)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">🧘 Kondisi Mental</span></div>
+        <div class="card-body">
+          <div class="fgroup" style="margin-bottom:14px;">
+            <label class="flabel">Kondisi Emosi</label>
+            <div class="emo-grid">
+              <button class="emo-btn" onclick="setEmo(this,'calm')">😌 Tenang</button>
+              <button class="emo-btn" onclick="setEmo(this,'focused')">🎯 Fokus</button>
+              <button class="emo-btn" onclick="setEmo(this,'fomo')">😰 FOMO</button>
+              <button class="emo-btn" onclick="setEmo(this,'greedy')">🤑 Serakah</button>
+              <button class="emo-btn" onclick="setEmo(this,'revenge')">😡 Revenge</button>
+              <button class="emo-btn" onclick="setEmo(this,'neutral')">😐 Netral</button>
+            </div>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Tingkat Keyakinan Setup</label>
+            <div class="conf-wrap">
+              <input type="range" id="p-conf" min="0" max="100" value="50" oninput="document.getElementById('conf-lbl').textContent=this.value+'%'">
+              <span class="conf-val" id="conf-lbl">50%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📝 Catatan Analisis</span></div>
+        <div class="card-body">
+          <textarea id="p-notes" placeholder="Jelaskan apa yang kamu lihat: breakout trendline? entry antisipasi? level retest? Observasi utama..."></textarea>
+          <div class="fgroup" style="margin-top:12px;">
+            <label class="flabel">Level Invalidasi</label>
+            <input class="finput" type="number" id="p-inval" placeholder="Harga yang membatalkan thesis kamu" step="any">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     POST-TRADE
+     ════════════════════════════════════════ -->
+<div class="page" id="pg-post">
+  <div class="page-hdr">
+    <h2 class="page-title"><span class="page-icon">🎯</span> Review Post-Trade</h2>
+    <div style="display:flex;gap:9px;">
+      <select id="link-pre" style="font-size:0.78rem;min-width:200px;" onchange="linkPre(this.value)">
+        <option value="">↩ Hubungkan Rencana Pre-Trade</option>
+      </select>
+      <button class="btn btn-ghost" onclick="clearPost()">Bersihkan</button>
+      <button class="btn btn-primary" onclick="savePost()">💾 Simpan Review</button>
+    </div>
+  </div>
+
+  <!-- Images -->
+  <div class="g2" style="margin-bottom:18px;">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📸 Chart Setelah Trade</span></div>
+      <div class="card-body">
+        <div class="upload-zone">
+          <input type="file" id="post-chart-f" multiple accept="image/*" onchange="addPostChart(event)">
+          <div class="upload-icon">📈</div>
+          <div class="upload-txt">Upload Screenshot Chart Hasil</div>
+          <div class="upload-sub">Chart beranotasi, screenshot outcome</div>
+        </div>
+        <div class="img-grid" id="post-chart-th"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">🧾 Screenshot PnL</span></div>
+      <div class="card-body">
+        <div class="upload-zone">
+          <input type="file" id="post-pnl-f" multiple accept="image/*" onchange="addPostPnl(event)">
+          <div class="upload-icon">💰</div>
+          <div class="upload-txt">Upload PnL dari Exchange</div>
+          <div class="upload-sub">Bukti posisi closed dari exchange</div>
+        </div>
+        <div class="img-grid" id="post-pnl-th"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results + Ratings -->
+  <div class="g2" style="margin-bottom:18px;">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📊 Hasil Trade</span></div>
+      <div class="card-body">
+        <div class="g2" style="gap:12px;">
+          <div class="fgroup">
+            <label class="flabel req">Pair</label>
+            <input class="finput" id="po-pair" placeholder="BTCUSDT" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Hasil</label>
+            <select id="po-outcome" onchange="outStyle(this)">
+              <option value="">— Pilih —</option>
+              <option value="WIN">✅ WIN</option>
+              <option value="LOSS">❌ LOSS</option>
+              <option value="BREAKEVEN">〰️ BREAKEVEN</option>
+              <option value="PARTIAL">🔄 PARTIAL WIN</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Harga Entry Aktual</label>
+            <input class="finput" type="number" id="po-entry" placeholder="0.00" step="any" oninput="calcPost()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Harga Exit Aktual</label>
+            <input class="finput" type="number" id="po-exit" placeholder="0.00" step="any" oninput="calcPost()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel req">Realised PnL ($)</label>
+            <input class="finput" type="number" id="po-pnl" placeholder="±0.00" step="0.01" oninput="calcPost()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Biaya/Fee ($)</label>
+            <input class="finput" type="number" id="po-fees" placeholder="0.00" step="0.01" oninput="calcPost()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Net PnL ($)</label>
+            <input class="finput" id="po-net" readonly>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">ROI dari Margin (%)</label>
+            <input class="finput" id="po-roi" readonly>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Alasan Tutup Posisi</label>
+            <select id="po-close">
+              <option value="">— Pilih —</option>
+              <option>🎯 TP Hit</option>
+              <option>🛑 SL Hit</option>
+              <option>👆 Tutup Manual</option>
+              <option>📏 Trailing Stop</option>
+              <option>⏰ Time Stop</option>
+              <option>💀 Liquidated</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Durasi</label>
+            <input class="finput" id="po-dur" placeholder="cth. 45m / 2h">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Saldo Setelah Trade ($)</label>
+            <input class="finput" type="number" id="po-bal" placeholder="Saldo saat ini" step="0.01" oninput="updHdrBal()">
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Pattern yang Digunakan</label>
+            <input class="finput" id="po-pattern" placeholder="cth. Falling Wedge" readonly style="opacity:0.7;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <!-- Ratings -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">⭐ Penilaian Kualitas Trade</span></div>
+        <div class="card-body">
+          <div class="g-gap" style="gap:11px;">
+            <div class="fgroup">
+              <label class="flabel">Kualitas Entry</label>
+              <div class="conf-wrap">
+                <input type="range" id="r-entry" min="1" max="10" value="5" oninput="upRating('rv-entry',this.value)">
+                <span class="conf-val" id="rv-entry" style="font-size:0.85rem;">5/10</span>
+              </div>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Kualitas Exit</label>
+              <div class="conf-wrap">
+                <input type="range" id="r-exit" min="1" max="10" value="5" oninput="upRating('rv-exit',this.value)">
+                <span class="conf-val" id="rv-exit" style="font-size:0.85rem;">5/10</span>
+              </div>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Ketaatan pada Rencana</label>
+              <div class="conf-wrap">
+                <input type="range" id="r-plan" min="1" max="10" value="5" oninput="upRating('rv-plan',this.value)">
+                <span class="conf-val" id="rv-plan" style="font-size:0.85rem;">5/10</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post Emotion -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">🧠 Perasaan Setelah Trade</span></div>
+        <div class="card-body">
+          <div class="emo-grid">
+            <button class="emo-btn" onclick="setPostEmo(this,'satisfied')">😌 Puas</button>
+            <button class="emo-btn" onclick="setPostEmo(this,'neutral')">😐 Netral</button>
+            <button class="emo-btn" onclick="setPostEmo(this,'frustrated')">😤 Frustrasi</button>
+            <button class="emo-btn" onclick="setPostEmo(this,'regret')">😞 Menyesal</button>
+            <button class="emo-btn" onclick="setPostEmo(this,'relieved')">😅 Lega</button>
+            <button class="emo-btn" onclick="setPostEmo(this,'excited')">🤩 Excited</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Did breakout work as expected? -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📐 Evaluasi Breakout</span></div>
+        <div class="card-body">
+          <div class="g-gap" style="gap:11px;">
+            <div class="fgroup">
+              <label class="flabel">Breakout berjalan sesuai ekspektasi?</label>
+              <select id="po-brk">
+                <option value="">— Pilih —</option>
+                <option>✅ Ya — breakout bersih + follow-through kuat</option>
+                <option>⚠️ Sebagian — broke tapi follow-through lemah</option>
+                <option>❌ Fakeout — break lalu berbalik arah</option>
+                <option>🔄 Retest berhasil</option>
+                <option>🔄 Retest gagal</option>
+              </select>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Rencana Diikuti?</label>
+              <select id="po-planf">
+                <option value="">— Pilih —</option>
+                <option>✅ 100% — Diikuti persis</option>
+                <option>🟡 Sebagian Besar — Perubahan kecil</option>
+                <option>🟠 Sebagian — Menyimpang dari rencana</option>
+                <option>🔴 Tidak — Trade impulsif</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reflection -->
+  <div class="g2">
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📝 Refleksi</span></div>
+      <div class="card-body">
+        <div class="g-gap">
+          <div class="fgroup"><label class="flabel">Apa yang berjalan baik?</label><textarea id="po-good" placeholder="Entry bersih? Pattern berhasil? Indikator aligned?"></textarea></div>
+          <div class="fgroup"><label class="flabel">Apa yang salah?</label><textarea id="po-bad" placeholder="Exit terlalu cepat? Baca pattern salah? Volume tidak ada?"></textarea></div>
+          <div class="fgroup"><label class="flabel">Pelajaran Utama</label><textarea id="po-lesson" style="min-height:60px;" placeholder="Hal terpenting yang dipelajari dari trade ini..."></textarea></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">🚫 Checklist Kesalahan</span></div>
+      <div class="card-body">
+        <div class="chk-grid" style="grid-template-columns:1fr;">
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Entry sebelum konfirmasi breakout</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Mengabaikan sinyal Stochastic</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Volume rendah saat breakout (sinyal lemah)</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Memindahkan SL lebih jauh (hope trade)</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Menutup posisi terlalu cepat (takut sebelum TP)</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Pattern belum terbentuk sempurna</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">EMA tidak aligned — sinyal diabaikan</span></div>
+          <div class="chk-item" onclick="chk(this)"><div class="chk-box">?</div><span class="chk-label">Over-leverage / margin terlalu besar</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     PORTFOLIO
+     ════════════════════════════════════════ -->
+<div class="page" id="pg-port">
+  <div class="page-hdr">
+    <h2 class="page-title"><span class="page-icon">📊</span> Dashboard Portofolio</h2>
+    <button class="btn btn-ghost" onclick="openBalMod()">⚙️ Atur Saldo</button>
+  </div>
+
+  <div class="stats-grid" id="stat-grid">
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#0ea5e9,#38bdf8)"><div class="stat-lbl">Saldo Saat Ini</div><div class="stat-val" id="s-bal" style="color:var(--ocean2)">$0.00</div><div class="stat-sub" id="s-bal-sub">—</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#059669,#34d399)"><div class="stat-lbl">Total Net PnL</div><div class="stat-val" id="s-pnl" style="color:var(--green)">$0.00</div><div class="stat-sub" id="s-pnl-sub">0.00%</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#0284c7,#7dd3fc)"><div class="stat-lbl">Win Rate</div><div class="stat-val" id="s-wr" style="color:var(--ocean2)">0%</div><div class="stat-sub" id="s-wr-sub">0M / 0R</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#d97706,#fcd34d)"><div class="stat-lbl">Rata-rata RR</div><div class="stat-val" id="s-rr" style="color:var(--gold)">0.00</div><div class="stat-sub">Risk:Reward</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#059669,#a7f3d0)"><div class="stat-lbl">Trade Terbaik</div><div class="stat-val" id="s-best" style="color:var(--green);font-size:1.2rem">$0.00</div><div class="stat-sub" id="s-best-sym">—</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#dc2626,#fca5a5)"><div class="stat-lbl">Trade Terburuk</div><div class="stat-val" id="s-worst" style="color:var(--red);font-size:1.2rem">$0.00</div><div class="stat-sub" id="s-worst-sym">—</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#0369a1,#7dd3fc)"><div class="stat-lbl">Total Trade</div><div class="stat-val" id="s-total" style="color:var(--ocean2)">0</div><div class="stat-sub">Selesai</div></div>
+    <div class="stat-card" style="--bar-color:linear-gradient(90deg,#f59e0b,#fde68a)"><div class="stat-lbl">Max Drawdown</div><div class="stat-val" id="s-dd" style="color:var(--warn);font-size:1.2rem">0%</div><div class="stat-sub">Puncak → Terbawah</div></div>
+  </div>
+
+  <div class="g2" style="margin-bottom:18px;">
+    <div class="card"><div class="card-hdr"><span class="card-title">📈 Pertumbuhan Saldo</span></div><div class="card-body" style="padding:10px;"><div class="chart-box"><canvas id="ch-growth"></canvas></div></div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">🥧 Distribusi Win/Loss</span></div><div class="card-body" style="padding:10px;"><div class="chart-box" style="height:230px;"><canvas id="ch-dist"></canvas></div></div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-hdr"><span class="card-title">📅 PnL Harian</span></div><div class="card-body" style="padding:10px;"><div class="chart-box"><canvas id="ch-daily"></canvas></div></div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">📐 PnL per Pattern</span></div><div class="card-body" style="padding:10px;"><div class="chart-box"><canvas id="ch-pattern"></canvas></div></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     HISTORY
+     ════════════════════════════════════════ -->
+<div class="page" id="pg-hist">
+  <div class="page-hdr">
+    <h2 class="page-title"><span class="page-icon">📋</span> Riwayat Trade</h2>
+    <div style="display:flex;gap:9px;align-items:center;">
+      <input class="finput" id="h-search" placeholder="🔍 Cari pair..." style="width:160px;padding:7px 11px;" oninput="filterHist()">
+      <select id="h-filter" style="font-size:0.78rem;" onchange="filterHist()">
+        <option value="">Semua Hasil</option>
+        <option value="WIN">Menang</option><option value="LOSS">Rugi</option>
+        <option value="BREAKEVEN">Breakeven</option>
+      </select>
+      <button class="btn-export" onclick="exportXLSX()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel
+      </button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table><thead>
+        <tr><th>#</th><th>Tanggal</th><th>Pair</th><th>Arah</th><th>Pattern</th><th>Tipe Entry</th><th>TF</th><th>Entry</th><th>Exit</th><th>Margin</th><th>Net PnL</th><th>ROI</th><th>Hasil</th><th>Aksi</th></tr>
+      </thead><tbody id="hist-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+</main>
+</div><!-- /app -->
+
+<!-- ════ LOGIN MODAL ════ -->
+<div class="overlay open" id="modal-login">
+  <div class="modal setup-modal">
+    <div class="setup-hero">
+      <div class="setup-hero-icon">🌊</div>
+      <div class="setup-hero-title">OceanTrade Journal</div>
+      <div class="setup-hero-sub">Login untuk mengakses jurnal kamu dari mana saja</div>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:36px 32px;">
+      <p style="font-size:0.88rem;color:var(--text3);margin-bottom:28px;line-height:1.6;">Data kamu tersimpan aman di cloud dan bisa diakses dari perangkat apapun setelah login.</p>
+      <button onclick="loginGoogle()"
+        style="display:inline-flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 24px;border-radius:12px;border:1.5px solid #dadce0;background:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;color:#3c4043;box-shadow:0 2px 8px rgba(0,0,0,0.1);transition:all 0.2s;"
+        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)'"
+        onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.6 20H24v8h11.3C33.8 32.6 29.5 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.2 2.7L37 10C33.4 6.7 29 4.5 24 4.5 13.3 4.5 4.5 13.3 4.5 24S13.3 43.5 24 43.5c11 0 20.5-8 20.5-19.5 0-1.3-.1-2.7-.4-4z"/><path fill="#34A853" d="M6.3 14.7l6.6 4.8C14.5 16 19 13 24 13c2.8 0 5.3 1 7.2 2.7L37 10C33.4 6.7 29 4.5 24 4.5c-7.7 0-14.4 4.4-17.7 10.2z"/><path fill="#FBBC05" d="M24 43.5c5 0 9.4-1.7 12.9-4.5l-6-4.9C29.2 35.6 26.7 36.5 24 36.5c-5.4 0-9.9-3.7-11.5-8.6l-6.5 5C9.5 39.1 16.3 43.5 24 43.5z"/><path fill="#EA4335" d="M43.6 20H24v8h11.3c-.7 2-2 3.7-3.7 4.9l6 4.9C41 34.6 44 29.8 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
+        Masuk dengan Google
+      </button>
+      <p style="font-size:0.72rem;color:var(--text4);margin-top:16px;">Data kamu terikat dengan akun Google dan tidak dapat diakses orang lain</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════ BALANCE MODAL ════ -->
+<div class="overlay" id="modal-bal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-hdr">
+      <span class="modal-title">💰 Kelola Modal & Saldo</span>
+      <button class="modal-close" onclick="closeMod('modal-bal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:4px;background:var(--sky);border-radius:10px;padding:4px;margin-bottom:20px;">
+        <button id="bal-tab-set"  onclick="balTab('set')"  style="flex:1;padding:8px;border-radius:7px;border:none;font-family:'Syne',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;background:var(--surface);color:var(--ocean2);box-shadow:0 1px 4px rgba(14,165,233,0.15);">⚙️ Atur Manual</button>
+        <button id="bal-tab-dep"  onclick="balTab('dep')"  style="flex:1;padding:8px;border-radius:7px;border:none;font-family:'Syne',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);">➕ Deposit</button>
+        <button id="bal-tab-wd"   onclick="balTab('wd')"   style="flex:1;padding:8px;border-radius:7px;border:none;font-family:'Syne',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);">➖ Withdraw</button>
+      </div>
+
+      <!-- Current balance display -->
+      <div style="background:linear-gradient(135deg,var(--ocean1),var(--ocean2));border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase;">Saldo Saat Ini</div>
+          <div id="bal-disp-curr" style="font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:#fff;">$0.00</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase;">Modal Awal</div>
+          <div id="bal-disp-init" style="font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:rgba(255,255,255,0.9);">$0.00</div>
+        </div>
+      </div>
+
+      <!-- Panel: Set manual -->
+      <div id="bal-panel-set">
+        <div class="g-gap" style="gap:14px;">
+          <div class="fgroup">
+            <label class="flabel">Modal Awal / Initial Capital (USDT)</label>
+            <input class="finput" type="number" id="bal-init" step="0.01" placeholder="cth. 100">
+            <span style="font-size:0.72rem;color:var(--text4);">Total modal yang kamu alokasikan untuk futures trading</span>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Saldo Saat Ini (USDT)</label>
+            <input class="finput" type="number" id="bal-curr" step="0.01" placeholder="cth. 100">
+            <span style="font-size:0.72rem;color:var(--text4);">Ubah ini jika ingin koreksi saldo secara manual</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: Deposit -->
+      <div id="bal-panel-dep" style="display:none;">
+        <div class="g-gap" style="gap:14px;">
+          <div class="fgroup">
+            <label class="flabel">Jumlah Deposit (USDT)</label>
+            <input class="finput" type="number" id="bal-dep-amt" step="0.01" placeholder="cth. 50" oninput="previewBal()">
+            <span style="font-size:0.72rem;color:var(--text4);">Akan ditambahkan ke saldo dan modal awal</span>
+          </div>
+          <div id="bal-preview" style="display:none;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:0.72rem;color:var(--green);font-weight:600;margin-bottom:4px;">PREVIEW SETELAH DEPOSIT</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--green);" id="bal-preview-val">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: Withdraw -->
+      <div id="bal-panel-wd" style="display:none;">
+        <div class="g-gap" style="gap:14px;">
+          <div class="fgroup">
+            <label class="flabel">Jumlah Withdraw (USDT)</label>
+            <input class="finput" type="number" id="bal-wd-amt" step="0.01" placeholder="cth. 20" oninput="previewBal()">
+            <span style="font-size:0.72rem;color:var(--text4);">Akan dikurangi dari saldo dan modal awal</span>
+          </div>
+          <div id="bal-preview-wd" style="display:none;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:0.72rem;color:var(--red);font-weight:600;margin-bottom:4px;">PREVIEW SETELAH WITHDRAW</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:700;color:var(--red);" id="bal-preview-wd-val">$0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeMod('modal-bal')">Batal</button>
+      <button class="btn btn-primary" id="bal-save-btn" onclick="saveBal()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ TRADE DETAIL MODAL ════ -->
+<div class="overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-hdr"><span class="modal-title" id="det-title">Trade Detail</span><button class="modal-close" onclick="closeMod('modal-detail')">✕</button></div>
+    <div class="modal-body" id="det-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="det-del">🗑️ Hapus</button>
+      <button class="btn btn-ghost" onclick="closeMod('modal-detail')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="t-icon">✅</span><span class="toast-msg" id="t-msg"></span></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+                                                  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, getDoc }
+                                                  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ─────────────────────────────────────────────
+// FIREBASE CONFIG
+// ─────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyBA7cZIsJT631Wzw05mk8ikXdmJLFS28qo",
+  authDomain:        "jurnaltrade-5db70.firebaseapp.com",
+  projectId:         "jurnaltrade-5db70",
+  storageBucket:     "jurnaltrade-5db70.firebasestorage.app",
+  messagingSenderId: "740783123815",
+  appId:             "1:740783123815:web:5f04fcfd925c97602013c2"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const S = {
+  trades: [],
+  preImgs: [], postChartImgs: [], postPnlImgs: [],
+  emo: '', postEmo: '',
+  balance: 0,
+  initCap: 0,
+  charts: {},
+  uid: null
+};
+
+// ─────────────────────────────────────────────
+// AUTH HELPERS
+// ─────────────────────────────────────────────
+function userPath(sub) { return `users/${S.uid}/${sub}`; }
+
+async function loginGoogle() {
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch(e) { toast('❌', 'Login gagal: ' + e.message); }
+}
+async function logoutUser() {
+  await signOut(auth);
+}
+window.loginGoogle  = loginGoogle;
+window.logoutUser   = logoutUser;
+
+// ─────────────────────────────────────────────
+// FIRESTORE HELPERS
+// ─────────────────────────────────────────────
+async function fsSetTrade(trade) {
+  if (!S.uid) return;
+  const slim = {...trade}; delete slim.imgs; delete slim.chartImgs; delete slim.pnlImgs;
+  await setDoc(doc(db, userPath('trades'), String(slim.id)), slim);
+}
+async function fsDeleteTrade(id) {
+  if (!S.uid) return;
+  await deleteDoc(doc(db, userPath('trades'), String(id)));
+}
+async function fsLoadTrades() {
+  if (!S.uid) return;
+  try {
+    const q = query(collection(db, userPath('trades')), orderBy('id','desc'));
+    const snap = await getDocs(q);
+    S.trades = snap.docs.map(d => d.data());
+  } catch(e) {
+    console.warn('fsLoadTrades error:', e);
+    S.trades = [];
+  }
+}
+async function fsSaveMeta(initCap, balance) {
+  if (!S.uid) return;
+  await setDoc(doc(db, userPath('meta'), 'portfolio'), { initCap, balance });
+}
+async function fsLoadMeta() {
+  if (!S.uid) return;
+  try {
+    const snap = await getDoc(doc(db, userPath('meta'), 'portfolio'));
+    if (snap.exists()) {
+      const d = snap.data();
+      S.initCap = d.initCap || 0;
+      S.balance = d.balance || 0;
+    } else {
+      // Dokumen belum ada — user baru
+      S.initCap = 0;
+      S.balance = 0;
+    }
+  } catch(e) {
+    console.warn('fsLoadMeta error:', e);
+    S.initCap = 0;
+    S.balance = 0;
+  }
+}
+
+// ─────────────────────────────────────────────
+// AUTH STATE LISTENER — main entry point
+// ─────────────────────────────────────────────
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    S.uid = user.uid;
+    showAuthUI(user);
+    document.getElementById('modal-login').classList.remove('open');
+    try {
+      await fsLoadMeta();
+      await fsLoadTrades();
+    } catch(e) { console.warn('Firestore load error:', e); }
+    refreshHdrBal();
+    renderHist();
+    populatePreLinks();
+  } else {
+    S.uid = null;
+    S.trades = [];
+    S.balance = 0;
+    S.initCap = 0;
+    showAuthUI(null);
+    document.getElementById('modal-login').classList.add('open');
+  }
+});
+
+function showAuthUI(user) {
+  const btn    = document.getElementById('auth-btn');
+  const btnTxt = document.getElementById('auth-btn-txt');
+  const lbl    = document.getElementById('auth-lbl');
+  if (user) {
+    btn.onclick            = logoutUser;
+    btn.title              = 'Logout';
+    btnTxt.textContent     = 'Logout';
+    btn.style.borderColor  = 'var(--red-bd)';
+    btn.style.color        = 'var(--red)';
+    lbl.textContent        = user.displayName || user.email || 'User';
+    lbl.style.display      = 'block';
+  } else {
+    btn.onclick            = loginGoogle;
+    btn.title              = 'Login dengan Google';
+    btnTxt.textContent     = 'Login';
+    btn.style.borderColor  = 'var(--border2)';
+    btn.style.color        = 'var(--ocean2)';
+    lbl.textContent        = '';
+    lbl.style.display      = 'none';
+  }
+}
+
+// ─────────────────────────────────────────────
+// INIT (non-auth parts)
+// ─────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  setDate();
+});
+
+function setDate() {
+  const n = new Date();
+  document.getElementById('p-date').value = n.toISOString().split('T')[0];
+  document.getElementById('p-time').value = n.toTimeString().slice(0,5);
+  document.getElementById('today-lbl').textContent = n.toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────
+function nav(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('active');
+  const map={pre:0,post:1,port:2,hist:3};
+  document.querySelectorAll('.nav-btn')[map[id]].classList.add('active');
+  if(id==='port') setTimeout(renderCharts,80);
+  if(id==='hist') renderHist();
+}
+
+// ─────────────────────────────────────────────
+// SETUP MODAL
+// ─────────────────────────────────────────────
+// setupSave removed — no longer used
+
+// ─────────────────────────────────────────────
+// AUTO CALCULATOR
+// ─────────────────────────────────────────────
+function calcPos() {
+  const entry  = parseFloat(document.getElementById('p-entry').value)||0;
+  const sl     = parseFloat(document.getElementById('p-sl').value)||0;
+  const tp     = parseFloat(document.getElementById('p-tp').value)||0;
+  const lev    = parseFloat(document.getElementById('p-lev').value)||0;
+  const margin = parseFloat(document.getElementById('p-margin').value)||0;
+  const dir    = document.getElementById('p-dir').value;
+
+  const set = (id,val,cls='') => {
+    const el=document.getElementById(id);
+    el.textContent=val;
+    el.className='calc-val'+(cls?' '+cls:'');
+  };
+
+  if(!entry||!lev||!margin){
+    ['c-possize','c-notional','c-rr','c-loss','c-profit','c-riskpct','c-liq','c-sldist']
+      .forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('rr-badge-wrap').innerHTML='';
+    return;
+  }
+
+  // Position size = (Margin × Leverage) / Entry
+  const notional = margin * lev;
+  const posSize  = notional / entry;
+
+  set('c-possize', posSize.toFixed(4)+' contracts','big');
+  set('c-notional','$'+notional.toFixed(2));
+
+  if(sl) {
+    const slDist = Math.abs(entry-sl);
+    const slPct  = (slDist/entry*100).toFixed(2);
+    // Loss = posSize × slDist
+    const dollarLoss   = posSize * slDist;
+    const riskPctBal   = S.balance>0 ? (dollarLoss/S.balance*100).toFixed(2) : '—';
+    set('c-sldist', slPct+'%');
+    set('c-loss',   '-$'+dollarLoss.toFixed(2),'neg');
+    set('c-riskpct', (S.balance>0?riskPctBal+'%':'—'), parseFloat(riskPctBal)>5?'neg':'warn');
+
+    // Liquidation (simplified: 100%/leverage distance from entry)
+    const liqDist = entry/lev;
+    const liqPrice = dir==='SHORT' ? (entry+liqDist).toFixed(4) : (entry-liqDist).toFixed(4);
+    set('c-liq','$'+liqPrice,'warn');
+
+    if(tp) {
+      const tpDist    = Math.abs(tp-entry);
+      const dollarProfit = posSize * tpDist;
+      const rr = (tpDist/slDist).toFixed(2);
+      set('c-rr','1 : '+rr);
+      set('c-profit','+$'+dollarProfit.toFixed(2),'pos');
+      const rrNum=parseFloat(rr);
+      const cls=rrNum>=2?'rr-good':rrNum>=1?'rr-ok':'rr-bad';
+      document.getElementById('rr-badge-wrap').innerHTML=`<span class="rr-badge ${cls}">RR 1:${rr}</span>`;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// POST CALC
+// ─────────────────────────────────────────────
+function calcPost() {
+  const pnl  = parseFloat(document.getElementById('po-pnl').value)||0;
+  const fees = parseFloat(document.getElementById('po-fees').value)||0;
+  const net  = pnl-fees;
+  document.getElementById('po-net').value = net.toFixed(2);
+  // ROI on margin
+  const margin = parseFloat(document.getElementById('p-margin')?.value)||0;
+  const linkedId = document.getElementById('link-pre').value;
+  const linked = S.trades.find(t=>t.id==linkedId);
+  const m = linked?.margin||margin||1;
+  const roi = (net/m*100).toFixed(2);
+  document.getElementById('po-roi').value = roi;
+}
+
+// ─────────────────────────────────────────────
+// CHECKLIST
+// ─────────────────────────────────────────────
+function chk(el) {
+  if(el.classList.contains('ok')) {
+    el.classList.replace('ok','no');
+    el.querySelector('.chk-box').textContent='✗';
+  } else if(el.classList.contains('no')) {
+    el.classList.remove('no');
+    el.querySelector('.chk-box').textContent='?';
+  } else {
+    el.classList.add('ok');
+    el.querySelector('.chk-box').textContent='✓';
+  }
+  const all = document.querySelectorAll('#pg-pre .chk-item');
+  const ok  = document.querySelectorAll('#pg-pre .chk-item.ok').length;
+  const scEl = document.getElementById('chk-score');
+  if(scEl) scEl.textContent = ok+'/'+all.length;
+}
+
+// ─────────────────────────────────────────────
+// IMAGES
+// ─────────────────────────────────────────────
+function addImgs(files, arr, gridId) {
+  Array.from(files).forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{ arr.push(e.target.result); renderThumbs(arr, gridId); };
+    r.readAsDataURL(f);
+  });
+}
+function addPreImgs(e)    { addImgs(e.target.files, S.preImgs, 'pre-thumbs'); }
+function addPostChart(e)  { addImgs(e.target.files, S.postChartImgs, 'post-chart-th'); }
+function addPostPnl(e)    { addImgs(e.target.files, S.postPnlImgs, 'post-pnl-th'); }
+
+function renderThumbs(arr, gridId) {
+  document.getElementById(gridId).innerHTML = arr.map((src,i)=>`
+    <div class="img-thumb">
+      <img src="${src}" alt="img${i}">
+      <button class="del" onclick="rmImg(${i},'${gridId}')">✕</button>
+    </div>`).join('');
+}
+function rmImg(i, gridId) {
+  const map={'pre-thumbs':S.preImgs,'post-chart-th':S.postChartImgs,'post-pnl-th':S.postPnlImgs};
+  map[gridId].splice(i,1); renderThumbs(map[gridId],gridId);
+}
+
+// ─────────────────────────────────────────────
+// EMOTIONS
+// ─────────────────────────────────────────────
+function setEmo(btn, val) {
+  document.querySelectorAll('#pg-pre .emo-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); S.emo=val;
+}
+function setPostEmo(btn, val) {
+  document.querySelectorAll('#pg-post .emo-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); S.postEmo=val;
+}
+function upRating(id, v) { document.getElementById(id).textContent=v+'/10'; }
+function outStyle(sel) {
+  const c={WIN:'var(--green)',LOSS:'var(--red)',BREAKEVEN:'var(--gold)',PARTIAL:'var(--ocean2)'};
+  sel.style.color = c[sel.value]||'';
+}
+
+// ─────────────────────────────────────────────
+// SAVE PRE-TRADE
+// ─────────────────────────────────────────────
+async function savePre() {
+  if (!S.uid) { toast('⚠️','Silakan login terlebih dahulu'); return; }
+  const pair=document.getElementById('p-pair').value;
+  const dir =document.getElementById('p-dir').value;
+  const entry=document.getElementById('p-entry').value;
+  if(!pair||!dir||!entry){toast('⚠️','Isi Pair, Direction, dan Entry Price');return;}
+
+  const plan = {
+    id: Date.now(), type:'pre',
+    pair, dir,
+    date: document.getElementById('p-date').value,
+    time: document.getElementById('p-time').value,
+    tf:   document.getElementById('p-tf').value,
+    sess: document.getElementById('p-sess').value,
+    entry:parseFloat(entry),
+    sl:   parseFloat(document.getElementById('p-sl').value)||null,
+    tp:   parseFloat(document.getElementById('p-tp').value)||null,
+    lev:  parseInt(document.getElementById('p-lev').value)||null,
+    margin:parseFloat(document.getElementById('p-margin').value)||null,
+    exch: document.getElementById('p-exch').value,
+    pattern: document.getElementById('p-pattern').value,
+    entryType: document.getElementById('p-entrytype').value,
+    tl: document.getElementById('p-tl').value,
+    notes: document.getElementById('p-notes').value,
+    inval: document.getElementById('p-inval').value,
+    emotion: S.emo,
+    confidence: document.getElementById('p-conf').value,
+    checks: Array.from(document.querySelectorAll('#pg-pre .chk-item')).map(el=>({
+      label: el.querySelector('.chk-label').textContent,
+      status: el.classList.contains('ok')?'ok':el.classList.contains('no')?'no':'?'
+    }))
+  };
+
+  S.trades.push(plan);
+  await fsSetTrade(plan);
+  populatePreLinks();
+  toast('✅',`Pre-trade plan disimpan: ${pair} ${dir}`);
+}
+window.savePre = savePre;
+
+// ─────────────────────────────────────────────
+// SAVE POST-TRADE
+// ─────────────────────────────────────────────
+async function savePost() {
+  if (!S.uid) { toast('⚠️','Silakan login terlebih dahulu'); return; }
+  const pair    = document.getElementById('po-pair').value;
+  const outcome = document.getElementById('po-outcome').value;
+  if(!pair||!outcome){toast('⚠️','Isi Pair dan Outcome');return;}
+
+  const pnl  = parseFloat(document.getElementById('po-pnl').value)||0;
+  const fees = parseFloat(document.getElementById('po-fees').value)||0;
+  const net  = pnl-fees;
+  const roi  = parseFloat(document.getElementById('po-roi').value)||0;
+
+  const linkedId = document.getElementById('link-pre').value;
+  const linked   = S.trades.find(t=>t.id==linkedId);
+
+  const review = {
+    id: Date.now(), type:'post',
+    pair, outcome, pnl, fees, net, roi,
+    entry:   parseFloat(document.getElementById('po-entry').value)||null,
+    exit:    parseFloat(document.getElementById('po-exit').value)||null,
+    closeReason: document.getElementById('po-close').value,
+    duration: document.getElementById('po-dur').value,
+    balAfter: parseFloat(document.getElementById('po-bal').value)||null,
+    pattern: document.getElementById('po-pattern').value || linked?.pattern || '',
+    entryType: linked?.entryType||'',
+    tf:    linked?.tf||'',
+    sess:  linked?.sess||'',
+    dir:   linked?.dir||'',
+    margin:linked?.margin||null,
+    rEntry: document.getElementById('r-entry').value,
+    rExit:  document.getElementById('r-exit').value,
+    rPlan:  document.getElementById('r-plan').value,
+    emo:    S.postEmo,
+    breakoutOk: document.getElementById('po-brk').value,
+    planFollow: document.getElementById('po-planf').value,
+    good:   document.getElementById('po-good').value,
+    bad:    document.getElementById('po-bad').value,
+    lesson: document.getElementById('po-lesson').value,
+    date:   new Date().toISOString().split('T')[0],
+    linkedPreId: linkedId,
+    mistakes: Array.from(document.querySelectorAll('#pg-post .chk-item.ok')).map(e=>e.querySelector('.chk-label').textContent)
+  };
+
+  if(review.balAfter) {
+    S.balance = review.balAfter;
+    await fsSaveMeta(S.initCap, S.balance);
+    refreshHdrBal();
+  }
+
+  S.trades.push(review);
+  await fsSetTrade(review);
+  renderHist();
+  refreshPortStats();
+  toast(outcome==='WIN'?'🎉':outcome==='LOSS'?'📉':'⚖️', `Review disimpan — ${outcome}`);
+}
+window.savePost = savePost;
+
+// ─────────────────────────────────────────────
+// LINK PRE-TRADE
+// ─────────────────────────────────────────────
+function populatePreLinks() {
+  const sel = document.getElementById('link-pre');
+  const plans = S.trades.filter(t=>t.type==='pre');
+  sel.innerHTML = '<option value="">↩ Link Pre-Trade Plan</option>' +
+    plans.map(p=>`<option value="${p.id}">[${p.date}] ${p.pair} ${p.dir} — ${p.pattern||'No pattern'}</option>`).join('');
+}
+function linkPre(id) {
+  const p = S.trades.find(t=>t.id==id); if(!p) return;
+  document.getElementById('po-pair').value = p.pair;
+  document.getElementById('po-entry').value = p.entry||'';
+  document.getElementById('po-pattern').value = p.pattern||'';
+  toast('🔗',`Linked: ${p.pair} ${p.dir} — ${p.pattern||''}`);
+}
+
+// ─────────────────────────────────────────────
+// CLEAR
+// ─────────────────────────────────────────────
+function clearPre() {
+  document.querySelectorAll('#pg-pre input:not([type=file]):not([type=range]), #pg-pre select, #pg-pre textarea')
+    .forEach(el=>{ if(!el.readOnly) el.value=''; });
+  document.querySelectorAll('#pg-pre .chk-item').forEach(el=>{el.classList.remove('ok','no');el.querySelector('.chk-box').textContent='?';});
+  document.querySelectorAll('#pg-pre .emo-btn').forEach(b=>b.classList.remove('on'));
+  S.preImgs=[]; renderThumbs([],'pre-thumbs');
+  S.emo='';
+  document.getElementById('p-conf').value=50;
+  document.getElementById('conf-lbl').textContent='50%';
+  document.getElementById('rr-badge-wrap').innerHTML='';
+  ['c-possize','c-notional','c-rr','c-loss','c-profit','c-riskpct','c-liq','c-sldist'].forEach(id=>document.getElementById(id).textContent='—');
+  setDate(); toast('🔄','Form cleared');
+}
+function clearPost() {
+  document.querySelectorAll('#pg-post input:not([type=file]):not([type=range]), #pg-post select, #pg-post textarea')
+    .forEach(el=>{ if(!el.readOnly) el.value=''; });
+  document.querySelectorAll('#pg-post .chk-item').forEach(el=>{el.classList.remove('ok','no');el.querySelector('.chk-box').textContent='?';});
+  document.querySelectorAll('#pg-post .emo-btn').forEach(b=>b.classList.remove('on'));
+  S.postChartImgs=[]; S.postPnlImgs=[];
+  renderThumbs([],'post-chart-th'); renderThumbs([],'post-pnl-th');
+  S.postEmo=''; toast('🔄','Form cleared');
+}
+
+// ─────────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────────
+function getPost() { return S.trades.filter(t=>t.type==='post').sort((a,b)=>new Date(b.date)-new Date(a.date)); }
+
+function renderHist() {
+  const rows = getPost();
+  const body = document.getElementById('hist-body');
+  if(!rows.length) {
+    body.innerHTML=`<tr><td colspan="14"><div class="empty"><div class="empty-icon">🌊</div><div class="empty-txt">Belum ada trade tercatat</div><div class="empty-sub">Simpan review post-trade untuk membangun riwayat kamu</div></div></td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map((t,i)=>`
+    <tr onclick="showDetail(${t.id})">
+      <td class="td-mono" style="opacity:0.45;">#${rows.length-i}</td>
+      <td class="td-mono" style="font-size:0.74rem;">${t.date||'—'}</td>
+      <td style="font-family:'Syne',sans-serif;font-weight:800;color:var(--deepest);">${t.pair}</td>
+      <td>${t.dir?`<span class="badge badge-${t.dir.toLowerCase()}">${t.dir}</span>`:'—'}</td>
+      <td style="font-size:0.78rem;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;">${t.pattern||'—'}</td>
+      <td style="font-size:0.75rem;color:var(--text3);">${entryTypeLabel(t.entryType)}</td>
+      <td class="td-mono" style="font-size:0.74rem;">${t.tf||'—'}</td>
+      <td class="td-mono">${t.entry?'$'+t.entry:'—'}</td>
+      <td class="td-mono">${t.exit?'$'+t.exit:'—'}</td>
+      <td class="td-mono">${t.margin?'$'+t.margin:'—'}</td>
+      <td class="${t.net>=0?'td-pos':'td-neg'}">${t.net>=0?'+':''}\$${(t.net||0).toFixed(2)}</td>
+      <td class="${t.roi>=0?'td-pos':'td-neg'}" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">${t.roi>=0?'+':''}${(t.roi||0).toFixed(2)}%</td>
+      <td><span class="badge badge-${t.outcome?.toLowerCase()==='win'?'win':t.outcome?.toLowerCase()==='loss'?'loss':t.outcome?.toLowerCase()==='partial'?'partial':'be'}">${t.outcome||'—'}</span></td>
+      <td><button class="btn btn-danger" onclick="event.stopPropagation();delTrade(${t.id})">Del</button></td>
+    </tr>`).join('');
+}
+
+function entryTypeLabel(v) {
+  const m={'breakout-direct':'⚡ Direct','breakout-anticipate':'🎯 Anticipate','retest':'🔄 Retest'};
+  return m[v]||v||'—';
+}
+
+function filterHist() {
+  const q = document.getElementById('h-search').value.toLowerCase();
+  const f = document.getElementById('h-filter').value;
+  document.querySelectorAll('#hist-body tr').forEach(row=>{
+    const txt = row.textContent.toLowerCase();
+    row.style.display = (!q||txt.includes(q))&&(!f||txt.includes(f.toLowerCase())) ? '' : 'none';
+  });
+}
+
+function showDetail(id) {
+  const t = S.trades.find(x=>x.id===id); if(!t) return;
+  document.getElementById('det-title').textContent = `${t.pair} — ${t.outcome||'Plan'}`;
+  document.getElementById('det-body').innerHTML = `
+    <div class="g2" style="gap:12px;margin-bottom:14px;">
+      <div><div class="stat-lbl">Net PnL</div><div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:${(t.net||0)>=0?'var(--green)':'var(--red)'};">${(t.net||0)>=0?'+':''}\$${(t.net||0).toFixed(2)}</div></div>
+      <div><div class="stat-lbl">Pattern</div><div style="font-size:0.88rem;font-weight:600;color:var(--text);margin-top:4px;">${t.pattern||'—'}</div></div>
+      ${t.lesson?`<div style="grid-column:span 2;"><div class="stat-lbl">💡 Key Lesson</div><div style="font-size:0.85rem;color:var(--text);margin-top:5px;line-height:1.5;">${t.lesson}</div></div>`:''}
+      ${t.good?`<div><div class="stat-lbl">✅ Went Well</div><div style="font-size:0.82rem;color:var(--text3);margin-top:4px;">${t.good}</div></div>`:''}
+      ${t.bad?`<div><div class="stat-lbl">❌ Went Wrong</div><div style="font-size:0.82rem;color:var(--text3);margin-top:4px;">${t.bad}</div></div>`:''}
+    </div>
+    ${t.mistakes?.length?`<div style="margin-top:10px;"><div class="stat-lbl" style="margin-bottom:7px;">Mistakes</div>${t.mistakes.map(m=>`<div style="font-size:0.78rem;color:var(--red);margin-bottom:4px;">⚠ ${m}</div>`).join('')}</div>`:''}
+  `;
+  document.getElementById('det-del').onclick = ()=>{ delTrade(id); closeMod('modal-detail'); };
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+async function delTrade(id) {
+  S.trades = S.trades.filter(t=>t.id!==id);
+  await fsDeleteTrade(id);
+  renderHist(); refreshPortStats();
+  toast('🗑️','Trade dihapus');
+}
+window.delTrade = delTrade;
+
+// ─────────────────────────────────────────────
+// PORTFOLIO
+// ─────────────────────────────────────────────
+function refreshPortStats() {
+  const posts = getPost();
+  const wins = posts.filter(t=>t.outcome==='WIN').length;
+  const losses = posts.filter(t=>t.outcome==='LOSS').length;
+  const totalNet = posts.reduce((s,t)=>s+(t.net||0),0);
+  const wr = posts.length ? ((wins/posts.length)*100).toFixed(1) : 0;
+  const pnlPct = S.initCap ? ((totalNet/S.initCap)*100).toFixed(2) : 0;
+  const sortedPnl = [...posts].sort((a,b)=>(b.net||0)-(a.net||0));
+  const best = sortedPnl[0];
+  const worst = sortedPnl[sortedPnl.length-1];
+
+  // Drawdown
+  let peak=S.initCap, maxDD=0, run=S.initCap;
+  [...posts].reverse().forEach(t=>{ run+=(t.net||0); if(run>peak)peak=run; const dd=peak>0?((peak-run)/peak*100):0; if(dd>maxDD)maxDD=dd; });
+
+  const $ = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  $('s-bal','$'+S.balance.toFixed(2));
+  $('s-bal-sub','Initial: $'+S.initCap.toFixed(2));
+  $('s-pnl',(totalNet>=0?'+$':'-$')+Math.abs(totalNet).toFixed(2));
+  $('s-pnl-sub',pnlPct+'%');
+  $('s-wr', wr+'%');
+  $('s-wr-sub', wins+'W / '+losses+'L');
+  $('s-total', posts.length);
+  $('s-dd', maxDD.toFixed(1)+'%');
+  if(best){ $('s-best','+$'+(best.net||0).toFixed(2)); $('s-best-sym',best.pair); }
+  if(worst){ $('s-worst','$'+(worst.net||0).toFixed(2)); $('s-worst-sym',worst.pair); }
+}
+
+function renderCharts() {
+  refreshPortStats();
+  const posts = [...getPost()].reverse();
+  if(!posts.length) return;
+
+  const cfg = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{ color:'#64748b', font:{size:11} } } },
+  };
+
+  // ── Growth
+  const c1 = document.getElementById('ch-growth').getContext('2d');
+  if(S.charts.g) S.charts.g.destroy();
+  let run=S.initCap;
+  const bals=[run], lbls=['Start'];
+  posts.forEach(t=>{ run+=(t.net||0); bals.push(run); lbls.push(t.date||''); });
+  S.charts.g = new Chart(c1, { type:'line', data:{ labels:lbls, datasets:[{ label:'Balance ($)', data:bals, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.08)', fill:true, tension:0.4, pointBackgroundColor:'#0ea5e9', pointRadius:3, borderWidth:2 }] }, options:{...cfg, scales:{ x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'rgba(14,165,233,0.06)'}}, y:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(14,165,233,0.06)'}} }} });
+
+  // ── Distribution
+  const c2 = document.getElementById('ch-dist').getContext('2d');
+  if(S.charts.d) S.charts.d.destroy();
+  const wins=posts.filter(t=>t.outcome==='WIN').length;
+  const losses=posts.filter(t=>t.outcome==='LOSS').length;
+  const be=posts.filter(t=>t.outcome==='BREAKEVEN').length;
+  const partial=posts.filter(t=>t.outcome==='PARTIAL').length;
+  S.charts.d = new Chart(c2, { type:'doughnut', data:{ labels:['Win','Loss','Breakeven','Partial'], datasets:[{ data:[wins,losses,be,partial], backgroundColor:['rgba(5,150,105,0.8)','rgba(220,38,38,0.8)','rgba(217,119,6,0.8)','rgba(14,165,233,0.8)'], borderColor:'#fff', borderWidth:3 }] }, options:{...cfg, cutout:'65%'} });
+
+  // ── Daily PnL
+  const c3 = document.getElementById('ch-daily').getContext('2d');
+  if(S.charts.day) S.charts.day.destroy();
+  const dmap={};
+  posts.forEach(t=>{ if(!t.date) return; dmap[t.date]=(dmap[t.date]||0)+(t.net||0); });
+  const dkeys=Object.keys(dmap).sort();
+  S.charts.day = new Chart(c3, { type:'bar', data:{ labels:dkeys, datasets:[{ label:'Daily PnL', data:dkeys.map(k=>dmap[k]), backgroundColor:dkeys.map(k=>dmap[k]>=0?'rgba(5,150,105,0.65)':'rgba(220,38,38,0.65)'), borderRadius:4 }] }, options:{...cfg, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{display:false}}, y:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(14,165,233,0.06)'}} }} });
+
+  // ── By Pattern
+  const c4 = document.getElementById('ch-pattern').getContext('2d');
+  if(S.charts.pat) S.charts.pat.destroy();
+  const pmap={};
+  posts.forEach(t=>{ if(!t.pattern) return; pmap[t.pattern]=(pmap[t.pattern]||0)+(t.net||0); });
+  const pkeys=Object.keys(pmap);
+  S.charts.pat = new Chart(c4, { type:'bar', data:{ labels:pkeys, datasets:[{ label:'PnL by Pattern', data:pkeys.map(k=>pmap[k]), backgroundColor:pkeys.map(k=>pmap[k]>=0?'rgba(14,165,233,0.65)':'rgba(220,38,38,0.65)'), borderRadius:4 }] }, options:{...cfg, indexAxis:'y', plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>'$'+v},grid:{color:'rgba(14,165,233,0.06)'}}, y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}} }} });
+}
+
+// ─────────────────────────────────────────────
+// BALANCE
+// ─────────────────────────────────────────────
+function refreshHdrBal() { document.getElementById('hdr-bal').textContent='$'+S.balance.toFixed(2); }
+function updHdrBal() {
+  const v=parseFloat(document.getElementById('po-bal').value);
+  if(!isNaN(v)) { S.balance=v; refreshHdrBal(); }
+}
+// ─────────────────────────────────────────────
+// BALANCE MODAL — tab logic
+// ─────────────────────────────────────────────
+let _balTab = 'set';
+
+function balTab(tab) {
+  _balTab = tab;
+  ['set','dep','wd'].forEach(t => {
+    const panel = document.getElementById('bal-panel-'+t);
+    const btn   = document.getElementById('bal-tab-'+t);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
+    if (btn) {
+      btn.style.background = t === tab ? 'var(--surface)' : 'transparent';
+      btn.style.color      = t === tab ? 'var(--ocean2)'  : 'var(--text3)';
+      btn.style.boxShadow  = t === tab ? '0 1px 4px rgba(14,165,233,0.15)' : 'none';
+    }
+  });
+  const pd = document.getElementById('bal-preview');
+  const pw = document.getElementById('bal-preview-wd');
+  if(pd) pd.style.display='none';
+  if(pw) pw.style.display='none';
+  const saveBtn = document.getElementById('bal-save-btn');
+  if(saveBtn) saveBtn.textContent = tab==='dep' ? '➕ Konfirmasi Deposit' : tab==='wd' ? '➖ Konfirmasi Withdraw' : '💾 Simpan';
+}
+
+function previewBal() {
+  if (_balTab === 'dep') {
+    const amt = parseFloat(document.getElementById('bal-dep-amt').value)||0;
+    const prev = document.getElementById('bal-preview');
+    if (amt > 0) { document.getElementById('bal-preview-val').textContent = '$'+(S.balance+amt).toFixed(2); prev.style.display=''; }
+    else prev.style.display='none';
+  } else if (_balTab === 'wd') {
+    const amt = parseFloat(document.getElementById('bal-wd-amt').value)||0;
+    const prev = document.getElementById('bal-preview-wd');
+    if (amt > 0) { document.getElementById('bal-preview-wd-val').textContent = '$'+Math.max(0,S.balance-amt).toFixed(2); prev.style.display=''; }
+    else prev.style.display='none';
+  }
+}
+
+function openBalMod() {
+  _balTab = 'set';
+  balTab('set');
+  document.getElementById('bal-init').value = S.initCap || '';
+  document.getElementById('bal-curr').value = S.balance || '';
+  document.getElementById('bal-disp-curr').textContent = '$'+(S.balance||0).toFixed(2);
+  document.getElementById('bal-disp-init').textContent = '$'+(S.initCap||0).toFixed(2);
+  const da = document.getElementById('bal-dep-amt'); if(da) da.value='';
+  const wa = document.getElementById('bal-wd-amt');  if(wa) wa.value='';
+  document.getElementById('modal-bal').classList.add('open');
+}
+
+async function saveBal() {
+  if (_balTab === 'set') {
+    const init = parseFloat(document.getElementById('bal-init').value);
+    const curr = parseFloat(document.getElementById('bal-curr').value);
+    if (!init || init <= 0) { toast('⚠️','Isi Modal Awal terlebih dahulu'); return; }
+    if (isNaN(curr) || curr < 0)  { toast('⚠️','Isi Saldo Saat Ini terlebih dahulu'); return; }
+    S.initCap = init; S.balance = curr;
+  } else if (_balTab === 'dep') {
+    const amt = parseFloat(document.getElementById('bal-dep-amt').value)||0;
+    if (amt <= 0) { toast('⚠️','Masukkan jumlah deposit'); return; }
+    S.balance += amt; S.initCap += amt;
+  } else if (_balTab === 'wd') {
+    const amt = parseFloat(document.getElementById('bal-wd-amt').value)||0;
+    if (amt <= 0) { toast('⚠️','Masukkan jumlah withdraw'); return; }
+    if (amt > S.balance) { toast('⚠️','Jumlah withdraw melebihi saldo'); return; }
+    S.balance -= amt; S.initCap -= amt;
+  }
+  await fsSaveMeta(S.initCap, S.balance);
+  refreshHdrBal(); closeMod('modal-bal');
+  const msgs = { set:'✅ Modal & saldo diperbarui', dep:'➕ Deposit berhasil dicatat', wd:'➖ Withdraw berhasil dicatat' };
+  toast('💰', msgs[_balTab]);
+}
+window.balTab     = balTab;
+window.previewBal = previewBal;
+window.saveBal    = saveBal;
+
+// ─────────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────────
+function closeMod(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o&&o.id!=='modal-login') closeMod(o.id); }));
+
+// ─────────────────────────────────────────────
+// EXPORT EXCEL
+// ─────────────────────────────────────────────
+function exportXLSX() {
+  const posts = getPost();
+  if(!posts.length){toast('⚠️','Tidak ada data untuk di-export');return;}
+  const wb = XLSX.utils.book_new();
+  const hdr = ['#','Date','Pair','Dir','Pattern','Entry Type','TF','Session','Entry','Exit','Margin','PnL($)','Fees($)','Net PnL($)','ROI(%)','Outcome','Close Reason','Duration','Entry Q','Exit Q','Plan Q','Emotion','Breakout OK','Plan Followed','Went Well','Went Wrong','Lesson'];
+  const rows = posts.map((t,i)=>[
+    posts.length-i, t.date||'', t.pair||'', t.dir||'',
+    t.pattern||'', entryTypeLabel(t.entryType), t.tf||'', t.sess||'',
+    t.entry||'', t.exit||'', t.margin||'',
+    t.pnl||0, t.fees||0, t.net||0, t.roi||0,
+    t.outcome||'', t.closeReason||'', t.duration||'',
+    t.rEntry||'', t.rExit||'', t.rPlan||'', t.emo||'',
+    t.breakoutOk||'', t.planFollow||'',
+    t.good||'', t.bad||'', t.lesson||''
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([hdr,...rows]);
+  ws['!cols'] = hdr.map((_,i)=>({wch:i<2?10:i<8?18:i<16?12:22}));
+  XLSX.utils.book_append_sheet(wb,ws,'Trade Log');
+
+  // Summary
+  const wins=posts.filter(t=>t.outcome==='WIN').length;
+  const totalNet=posts.reduce((s,t)=>s+(t.net||0),0);
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['OceanTrade Futures Journal','','Export: '+new Date().toLocaleDateString('id-ID')],[''],
+    ['RINGKASAN PORTOFOLIO'],
+    ['Modal Awal','$'+S.initCap.toFixed(2)],
+    ['Balance Saat Ini','$'+S.balance.toFixed(2)],
+    ['Total Trades',posts.length],
+    ['Win',wins],['Loss',posts.filter(t=>t.outcome==='LOSS').length],
+    ['Win Rate',posts.length?((wins/posts.length)*100).toFixed(1)+'%':'0%'],
+    ['Total Net PnL','$'+totalNet.toFixed(2)],
+    [''],['Strategi: Breakout Trendline / Pattern'],
+    ['Indikator: Stochastic 5,3,3 | Volume | EMA 13 & 21'],
+  ]);
+  XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+  XLSX.writeFile(wb, `OceanTrade_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('📥','Excel berhasil di-export!');
+}
+
+// persist() is now handled by Firestore (fsSetTrade / fsDeleteTrade / fsSaveMeta)
+// kept as a no-op for safety
+function persist() {}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+function toast(icon, msg) {
+  document.getElementById('t-icon').textContent=icon;
+  document.getElementById('t-msg').textContent=msg;
+  const t=document.getElementById('toast');
+  t.classList.add('show');
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ─────────────────────────────────────────────
+// DRAG & DROP
+// ─────────────────────────────────────────────
+document.querySelectorAll('.upload-zone').forEach(z=>{
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('over'));
+  z.addEventListener('drop',e=>{
+    e.preventDefault(); z.classList.remove('over');
+    const inp=z.querySelector('input[type=file]'); if(!inp) return;
+    const dt=new DataTransfer();
+    Array.from(e.dataTransfer.files).forEach(f=>dt.items.add(f));
+    inp.files=dt.files; inp.dispatchEvent(new Event('change'));
+  });
+});
+
+// ─────────────────────────────────────────────
+// EXPOSE ALL FUNCTIONS TO GLOBAL SCOPE
+// (required because this is a type=module script)
+// ─────────────────────────────────────────────
+window.nav          = nav;
+// window.setupSave removed
+window.calcPos      = calcPos;
+window.calcPost     = calcPost;
+window.chk          = chk;
+window.addPreImgs   = addPreImgs;
+window.addPostChart = addPostChart;
+window.addPostPnl   = addPostPnl;
+window.rmImg        = rmImg;
+window.setEmo       = setEmo;
+window.setPostEmo   = setPostEmo;
+window.upRating     = upRating;
+window.outStyle     = outStyle;
+window.clearPre     = clearPre;
+window.clearPost    = clearPost;
+window.renderHist   = renderHist;
+window.filterHist   = filterHist;
+window.showDetail   = showDetail;
+window.openBalMod   = openBalMod;
+window.closeMod     = closeMod;
+window.updHdrBal    = updHdrBal;
+window.exportXLSX   = exportXLSX;
+window.linkPre      = linkPre;
+window.populatePreLinks = populatePreLinks;
+window.refreshPortStats = refreshPortStats;
+window.renderCharts = renderCharts;
+
+</script>
+<script>
+// Keyboard shortcuts (non-module)
+document.addEventListener('keydown',e=>{
+  if(e.altKey){
+    if(e.key==='1') window.nav('pre');
+    else if(e.key==='2') window.nav('post');
+    else if(e.key==='3') window.nav('port');
+    else if(e.key==='4') window.nav('hist');
+  }
+});
+</script>
+</body>
+</html>
